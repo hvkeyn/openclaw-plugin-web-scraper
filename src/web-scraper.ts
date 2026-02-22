@@ -391,6 +391,7 @@ const plugin = {
       async execute(_toolCallId: string, args: Record<string, unknown>) {
         const urls = args.urls as string[];
         const reqTimeout = Number(args.timeout) || timeout;
+        const maxCharsPerUrl = 30000;
 
         if (!configured) {
           return jsonResult({
@@ -405,7 +406,27 @@ const plugin = {
             timeout: reqTimeout,
             use_internal_proxy: cfg.useInternalProxy || false,
           });
-          return jsonResult(res);
+
+          const rawResults = (res.results || []) as Array<Record<string, unknown>>;
+          const cleaned = rawResults.map((r) => {
+            const html = String(r.content || "");
+            const text = html
+              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+              .replace(/<[^>]+>/g, " ")
+              .replace(/\s+/g, " ")
+              .trim()
+              .slice(0, maxCharsPerUrl);
+            return {
+              url: r.url || "",
+              status: r.status || "unknown",
+              title: r.title || "",
+              text,
+              length: text.length,
+            };
+          });
+
+          return jsonResult({ urls, count: cleaned.length, results: cleaned });
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           return jsonResult({ urls, error: msg });
