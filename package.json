@@ -1,0 +1,61 @@
+{
+  "name": "web-scraper",
+  "version": "1.0.0",
+  "description": "OpenClaw plugin: web search (DuckDuckGo) and scraping tools powered by pyUniBParcer/Botasaurus",
+  "type": "module",
+  "license": "MIT",
+  "author": "OxFF <bosstuss@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hvkeyn/openclaw-plugin-web-scraper.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hvkeyn/openclaw-plugin-web-scraper/issues"
+  },
+  "homepage": "https://github.com/hvkeyn/openclaw-plugin-web-scraper#readme",
+  "keywords": [
+    "openclaw",
+    "openclaw-plugin",
+    "plugin",
+    "web-search",
+    "scraper",
+    "ddgr",
+    "duckduckgo",
+    "botasaurus"
+  ],
+  "main": "dist/web-scraper.js",
+  "types": "dist/web-scraper.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/web-scraper.d.ts",
+      "import": "./dist/web-scraper.js"
+    }
+  },
+  "files": [
+    "dist",
+    "openclaw.plugin.json",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "server/"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true})\""
+  },
+  "peerDependencies": {
+    "openclaw": ">=2025.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "openclaw": {
+    "extensions": [
+      "./src/web-scraper.ts"
+    ]
+  }
+}

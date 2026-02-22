@@ -1,0 +1,57 @@
+{
+  "id": "web-scraper",
+  "version": "1.0.0",
+  "description": "Web search (DuckDuckGo) and scraping tools powered by pyUniBParcer/Botasaurus. Provides web_search, web_fetch, and web_crawl_batch tools.",
+  "main": "web-scraper.js",
+  "tools": ["web_search", "web_fetch", "web_crawl_batch"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "scraperUrl": {
+        "type": "string",
+        "description": "Remote pyUniBParcer API URL (e.g. http://your-server:8001)"
+      },
+      "username": {
+        "type": "string",
+        "default": "admin",
+        "description": "HTTP Basic auth username"
+      },
+      "password": {
+        "type": "string",
+        "description": "HTTP Basic auth password"
+      },
+      "defaultTimeout": {
+        "type": "number",
+        "default": 30,
+        "description": "Default request timeout (seconds)"
+      },
+      "useInternalProxy": {
+        "type": "boolean",
+        "default": false,
+        "description": "Use server-side proxy rotation"
+      }
+    }
+  },
+  "uiHints": {
+    "scraperUrl": {
+      "label": "Scraper API URL",
+      "placeholder": "http://your-server:8001",
+      "help": "URL of the pyUniBParcer API server"
+    },
+    "username": {
+      "label": "API Username",
+      "placeholder": "admin"
+    },
+    "password": {
+      "label": "API Password",
+      "sensitive": true
+    },
+    "defaultTimeout": {
+      "label": "Default Timeout (seconds)"
+    },
+    "useInternalProxy": {
+      "label": "Use server-side proxy rotation"
+    }
+  }
+}

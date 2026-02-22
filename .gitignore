@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.log
+.env
+.DS_Store
+Thumbs.db
+server/.venv/
+server/__pycache__/
+server/*.pyc
