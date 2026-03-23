@@ -30,6 +30,10 @@
         "type": "boolean",
         "default": false,
         "description": "Use server-side proxy rotation"
+      },
+      "tavilyApiKey": {
+        "type": "string",
+        "description": "Tavily Search API key. When set, web_search uses Tavily instead of DuckDuckGo (ddgr). Get a key at https://app.tavily.com"
       }
     }
   },
@@ -52,6 +56,12 @@
     },
     "useInternalProxy": {
       "label": "Use server-side proxy rotation"
+    },
+    "tavilyApiKey": {
+      "label": "Tavily API Key",
+      "placeholder": "tvly-...",
+      "sensitive": true,
+      "help": "When set, web_search uses Tavily Search API instead of DuckDuckGo. Get a key at https://app.tavily.com"
     }
   }
 }

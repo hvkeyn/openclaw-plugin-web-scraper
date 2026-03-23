@@ -8,6 +8,7 @@ interface PluginConfig {
   password?: string;
   defaultTimeout?: number;
   useInternalProxy?: boolean;
+  tavilyApiKey?: string;
 }
 
 interface OpenClawPluginApi {
@@ -157,6 +158,7 @@ const plugin = {
       password: { type: "string" as const },
       defaultTimeout: { type: "number" as const },
       useInternalProxy: { type: "boolean" as const },
+      tavilyApiKey: { type: "string" as const },
     },
     required: [] as const,
   },
@@ -177,7 +179,7 @@ const plugin = {
       name: "web_search",
       label: "Web Search",
       description:
-        "Search the web using DuckDuckGo. Returns titles, URLs, and snippets for fast research.",
+        "Search the web using Tavily (when configured) or DuckDuckGo. Returns titles, URLs, and snippets for fast research.",
       parameters: {
         type: "object",
         properties: {
@@ -200,6 +202,55 @@ const plugin = {
           return jsonResult({ error: "empty_query", message: "Query is required." });
         }
 
+        // ── Tavily path (preferred when tavilyApiKey is configured) ──
+        if (cfg.tavilyApiKey) {
+          try {
+            const res = await httpRequest(
+              "https://api.tavily.com/search",
+              "POST",
+              { "Content-Type": "application/json", "Authorization": `Bearer ${cfg.tavilyApiKey}` },
+              JSON.stringify({
+                query,
+                max_results: n,
+                search_depth: "basic",
+                include_answer: false,
+              }),
+            );
+
+            if (res.status === 401 || res.status === 403) {
+              throw new Error(`Tavily API auth failed (HTTP ${res.status}). Check tavilyApiKey.`);
+            }
+            if (res.status >= 400) {
+              throw new Error(`Tavily API returned HTTP ${res.status}: ${res.body.slice(0, 300)}`);
+            }
+
+            const data = JSON.parse(res.body) as {
+              results: Array<{ title: string; url: string; content: string }>;
+            };
+            const results = data.results || [];
+            return jsonResult({
+              query,
+              provider: "tavily",
+              count: results.length,
+              results: results.map((r) => ({
+                title: r.title,
+                url: r.url,
+                snippet: r.content,
+              })),
+            });
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            return jsonResult({
+              query,
+              provider: "tavily",
+              count: 0,
+              results: [],
+              error: msg,
+            });
+          }
+        }
+
+        // ── DuckDuckGo fallback (ddgr CLI) ──
         const { exec } = await import("node:child_process");
         const { promisify } = await import("node:util");
         const execAsync = promisify(exec);
