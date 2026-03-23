@@ -139,8 +139,11 @@ async function tavilyExtract(
   const res = await httpRequest(
     "https://api.tavily.com/extract",
     "POST",
-    { "Content-Type": "application/json" },
-    JSON.stringify({ api_key: apiKey, urls: urls.slice(0, 20) }),
+    {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + apiKey,
+    },
+    JSON.stringify({ urls: urls.slice(0, 20) }),
   );
   if (res.status >= 400) {
     throw new Error(`Tavily Extract HTTP ${res.status}: ${res.body.slice(0, 300)}`);
