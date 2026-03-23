@@ -46,6 +46,9 @@
   "peerDependencies": {
     "openclaw": ">=2025.1.0"
   },
+  "dependencies": {
+    "@tavily/core": "^0.7.2"
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^5.9.3"

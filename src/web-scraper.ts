@@ -8,6 +8,7 @@ interface PluginConfig {
   password?: string;
   defaultTimeout?: number;
   useInternalProxy?: boolean;
+  tavilyApiKey?: string;
 }
 
 interface OpenClawPluginApi {
@@ -131,6 +132,28 @@ function directFetch(url: string, timeoutMs: number): Promise<string> {
   });
 }
 
+async function tavilyExtract(
+  urls: string[],
+  apiKey: string,
+): Promise<Array<{ url: string; content: string }>> {
+  const res = await httpRequest(
+    "https://api.tavily.com/extract",
+    "POST",
+    { "Content-Type": "application/json" },
+    JSON.stringify({ api_key: apiKey, urls: urls.slice(0, 20) }),
+  );
+  if (res.status >= 400) {
+    throw new Error(`Tavily Extract HTTP ${res.status}: ${res.body.slice(0, 300)}`);
+  }
+  const data = JSON.parse(res.body) as {
+    results?: Array<{ url: string; raw_content: string }>;
+  };
+  return (data.results || []).map((r) => ({
+    url: r.url,
+    content: r.raw_content || "",
+  }));
+}
+
 function jsonResult(data: unknown) {
   return {
     content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
@@ -157,6 +180,7 @@ const plugin = {
       password: { type: "string" as const },
       defaultTimeout: { type: "number" as const },
       useInternalProxy: { type: "boolean" as const },
+      tavilyApiKey: { type: "string" as const },
     },
     required: [] as const,
   },
@@ -299,6 +323,24 @@ const plugin = {
             html = String(content.content || "");
           } catch (scraperErr: unknown) {
             const scraperMsg = scraperErr instanceof Error ? scraperErr.message : String(scraperErr);
+
+            // Try Tavily Extract before direct HTTP fallback
+            if (cfg.tavilyApiKey) {
+              try {
+                const extracted = await tavilyExtract([url], cfg.tavilyApiKey);
+                const match = extracted.find((e) => e.content);
+                if (match) {
+                  const text = match.content.slice(0, maxChars);
+                  return jsonResult({
+                    url, finalUrl: url, status: "success", title: "",
+                    text, length: text.length,
+                    fetchedAt: new Date().toISOString(),
+                    note: "Fetched via Tavily Extract (scraper error: " + scraperMsg.slice(0, 100) + ")",
+                  });
+                }
+              } catch { /* fall through to directFetch */ }
+            }
+
             const fallbackHtml = await directFetch(url, timeout * 1000);
             const fallbackText = fallbackHtml
               .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
@@ -320,6 +362,23 @@ const plugin = {
           }
 
           if (!html && !waitFor) {
+            // Try Tavily Extract before direct HTTP fallback
+            if (cfg.tavilyApiKey) {
+              try {
+                const extracted = await tavilyExtract([url], cfg.tavilyApiKey);
+                const match = extracted.find((e) => e.content);
+                if (match) {
+                  const text = match.content.slice(0, maxChars);
+                  return jsonResult({
+                    url, finalUrl: url, status: "success", title: "",
+                    text, length: text.length,
+                    fetchedAt: new Date().toISOString(),
+                    note: "Fetched via Tavily Extract (scraper returned empty)",
+                  });
+                }
+              } catch { /* fall through to directFetch */ }
+            }
+
             const directHtml = await directFetch(url, timeout * 1000);
             const directText = directHtml
               .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
@@ -429,6 +488,57 @@ const plugin = {
           return jsonResult({ urls, count: cleaned.length, results: cleaned });
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
+
+          // Try Tavily Extract as fallback for the full URL list
+          if (cfg.tavilyApiKey) {
+            try {
+              const extracted = await tavilyExtract(urls, cfg.tavilyApiKey);
+              if (extracted.length > 0) {
+                const results = extracted.map((e) => ({
+                  url: e.url,
+                  status: "success",
+                  title: "",
+                  text: e.content.slice(0, maxCharsPerUrl),
+                  length: Math.min(e.content.length, maxCharsPerUrl),
+                }));
+                return jsonResult({
+                  urls,
+                  count: results.length,
+                  results,
+                  note: "Fetched via Tavily Extract (scraper error: " + msg.slice(0, 100) + ")",
+                });
+              }
+            } catch { /* fall through to directFetch fallback */ }
+          }
+
+          // Final fallback: direct HTTP fetch for each URL
+          const fallbackResults = await Promise.all(
+            urls.map(async (u) => {
+              try {
+                const html = await directFetch(u, reqTimeout * 1000);
+                const text = html
+                  .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+                  .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+                  .replace(/<[^>]+>/g, " ")
+                  .replace(/\s+/g, " ")
+                  .trim()
+                  .slice(0, maxCharsPerUrl);
+                return { url: u, status: "success", title: "", text, length: text.length };
+              } catch {
+                return { url: u, status: "error", title: "", text: "", length: 0 };
+              }
+            }),
+          );
+          const nonEmpty = fallbackResults.filter((r) => r.length > 0);
+          if (nonEmpty.length > 0) {
+            return jsonResult({
+              urls,
+              count: nonEmpty.length,
+              results: nonEmpty,
+              note: "Fetched via direct HTTP (scraper error: " + msg.slice(0, 100) + ")",
+            });
+          }
+
           return jsonResult({ urls, error: msg });
         }
       },
