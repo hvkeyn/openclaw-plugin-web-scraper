@@ -170,7 +170,7 @@ const plugin = {
 
     if (!configured) {
       api.logger.warn(
-        `[${PLUGIN_ID}] scraperUrl not configured — web_fetch/web_crawl_batch will return errors. web_search (ddgr) still works.`,
+        `[${PLUGIN_ID}] scraperUrl not configured — web_fetch/web_crawl_batch will return errors. web_search will use ${cfg.tavilyApiKey ? "Tavily (tavilyApiKey set)" : "DuckDuckGo (ddgr)"}.`,
       );
     }
 
@@ -205,14 +205,15 @@ const plugin = {
         // ── Tavily path (preferred when tavilyApiKey is configured) ──
         if (cfg.tavilyApiKey) {
           try {
+            const tavilyN = Math.min(n, 20);
             const res = await httpRequest(
               "https://api.tavily.com/search",
               "POST",
               { "Content-Type": "application/json", "Authorization": `Bearer ${cfg.tavilyApiKey}` },
               JSON.stringify({
                 query,
-                max_results: n,
-                search_depth: "basic",
+                max_results: tavilyN,
+                search_depth: "advanced",
                 include_answer: false,
               }),
             );
@@ -506,13 +507,37 @@ const plugin = {
 
         cmd
           .command("status")
-          .description("Check scraper service and DuckDuckGo health")
+          .description("Check scraper service, Tavily, and DuckDuckGo health")
           .action(async () => {
             console.log(`Scraper: ${cfg.scraperUrl || "(not set)"}`);
             console.log(`Auth:    ${cfg.username ? "yes" : "no"}`);
             console.log(`Timeout: ${timeout}s`);
             console.log();
 
+            // Tavily check
+            if (cfg.tavilyApiKey) {
+              const masked = cfg.tavilyApiKey.slice(0, 8) + "***";
+              try {
+                const res = await httpRequest(
+                  "https://api.tavily.com/search",
+                  "POST",
+                  { "Content-Type": "application/json", "Authorization": `Bearer ${cfg.tavilyApiKey}` },
+                  JSON.stringify({ query: "test", max_results: 1, search_depth: "basic" }),
+                );
+                if (res.status >= 200 && res.status < 300) {
+                  console.log(`[tavily]   OK (key: ${masked})`);
+                } else {
+                  console.log(`[tavily]   FAIL (HTTP ${res.status}, key: ${masked})`);
+                }
+              } catch (e: unknown) {
+                const msg = e instanceof Error ? e.message : String(e);
+                console.log(`[tavily]   FAIL (${msg}, key: ${masked})`);
+              }
+            } else {
+              console.log("[tavily]   NOT CONFIGURED (set tavilyApiKey to enable)");
+            }
+
+            // DuckDuckGo check
             try {
               const { exec } = await import("node:child_process");
               const { promisify } = await import("node:util");
@@ -523,6 +548,7 @@ const plugin = {
               console.log("[ddgr]     MISSING (install: pip install ddgr)");
             }
 
+            // Scraper check
             if (configured) {
               try {
                 const res = await scraperRequest(cfg, "/health", "GET");

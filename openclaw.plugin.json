@@ -1,7 +1,7 @@
 {
   "id": "web-scraper",
   "version": "1.0.0",
-  "description": "Web search (DuckDuckGo) and scraping tools powered by pyUniBParcer/Botasaurus. Provides web_search, web_fetch, and web_crawl_batch tools.",
+  "description": "Web search (Tavily or DuckDuckGo) and scraping tools powered by pyUniBParcer/Botasaurus. Provides web_search, web_fetch, and web_crawl_batch tools.",
   "main": "web-scraper.js",
   "tools": ["web_search", "web_fetch", "web_crawl_batch"],
   "configSchema": {
