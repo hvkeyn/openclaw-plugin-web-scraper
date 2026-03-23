@@ -30,6 +30,10 @@
         "type": "boolean",
         "default": false,
         "description": "Use server-side proxy rotation"
+      },
+      "tavilyApiKey": {
+        "type": "string",
+        "description": "Tavily API key for Extract fallback (optional). When set, Tavily Extract is tried before direct HTTP fallback."
       }
     }
   },
@@ -52,6 +56,12 @@
     },
     "useInternalProxy": {
       "label": "Use server-side proxy rotation"
+    },
+    "tavilyApiKey": {
+      "label": "Tavily API Key",
+      "placeholder": "tvly-...",
+      "sensitive": true,
+      "help": "Optional. When set, Tavily Extract is used as fallback before direct HTTP fetch."
     }
   }
 }
